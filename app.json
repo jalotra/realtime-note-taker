@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "expo-starter-auth-nativewind",
-    "slug": "expo-starter-auth-nativewind",
+    "name": "realtime-note-taker",
+    "slug": "realtime-note-taker",
     "version": "1.0.0",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -9,10 +9,60 @@
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID to protect your notes."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": true
     },
-    "scheme": "myapp"
+    "scheme": "realtime-note-taker",
+    "ios": {
+      "bundleIdentifier": "com.notetaker.realtimenotetaker",
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.notetaker.realtimenotetaker",
+      "adaptiveIcon": {
+        "backgroundColor": "#292524"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "7d6e03fd-9b6f-4d8d-9f1f-1e28e7e218e0"
+      }
+    }
   }
 }

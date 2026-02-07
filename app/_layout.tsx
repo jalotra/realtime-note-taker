@@ -1,42 +1,64 @@
-import { Stack, useSegments, useRouter } from "expo-router";
+import {
+  useFonts,
+  Figtree_400Regular,
+  Figtree_500Medium,
+  Figtree_600SemiBold,
+  Figtree_700Bold,
+} from "@expo-google-fonts/figtree";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useCallback } from "react";
-import { Text, View, ActivityIndicator } from "react-native";
+import { Lock } from "lucide-react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 
+import { colors } from "../constants/colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
 import "../global.css";
 
-function AuthRoot() {
+function LockScreen() {
+  const { authenticate, isLoading } = useAuth();
+
+  return (
+    <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="items-center mb-10">
+        <View className="w-20 h-20 rounded-full bg-secondary items-center justify-center mb-6">
+          <Lock size={36} color={colors.primary} />
+        </View>
+        <Text className="text-2xl font-sans-bold text-foreground mb-2">Note Taker</Text>
+        <Text className="text-base font-sans text-muted-foreground text-center">
+          Authenticate to access your recordings and notes.
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={authenticate}
+        disabled={isLoading}
+        className="bg-primary rounded-xl px-8 py-4 w-full items-center"
+        style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+      >
+        {isLoading ? (
+          <ActivityIndicator color={colors.primaryForeground} />
+        ) : (
+          <Text className="text-primary-foreground font-sans-bold text-base">Unlock</Text>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-
-  const handleNavigation = useCallback(() => {
-    const inAuthGroup = segments[0] === "auth";
-
-    if (isLoading) {
-      return;
-    }
-
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace("/auth/login");
-    } else if (isAuthenticated && inAuthGroup) {
-      router.replace("/");
-    }
-  }, [isAuthenticated, segments, isLoading]);
-
-  useEffect(() => {
-    handleNavigation();
-  }, [handleNavigation]);
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#4338ca" />
-        <Text className="text-gray-600 mt-4">Loading...</Text>
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <LockScreen />;
   }
 
   return (
@@ -45,11 +67,12 @@ function AuthRoot() {
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: "#4338ca",
+            backgroundColor: colors.primary,
           },
-          headerTintColor: "#fff",
+          headerTintColor: colors.primaryForeground,
           headerTitleStyle: {
             fontWeight: "bold",
+            fontFamily: "Figtree_700Bold",
           },
         }}
       >
@@ -59,30 +82,30 @@ function AuthRoot() {
             headerShown: false,
           }}
         />
-
-        <Stack.Screen
-          name="auth/login"
-          options={{
-            title: "Login",
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="auth/register"
-          options={{
-            title: "Create Account",
-            headerShown: false,
-          }}
-        />
       </Stack>
     </>
   );
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Figtree_400Regular,
+    Figtree_500Medium,
+    Figtree_600SemiBold,
+    Figtree_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <AuthProvider>
-      <AuthRoot />
+      <AuthGate />
     </AuthProvider>
   );
 }

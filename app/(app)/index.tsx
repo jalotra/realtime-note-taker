@@ -1,57 +1,141 @@
-import React from "react";
-import { View, Text, ScrollView } from "react-native";
+import { Mic, Square, FileText } from "lucide-react-native";
+import React, { useRef, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  Pressable,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 
-import Button from "../../components/Button";
-import { useAuth } from "../../context/AuthContext";
+import { colors } from "../../constants/colors";
+import { useRecording } from "../../context/RecordingContext";
 
-export default function HomeScreen() {
-  const { user, logout } = useAuth();
+function formatDuration(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
 
-  const name = user?.name ?? "User";
-  const email = user?.email ?? "No email";
+export default function RecordScreen() {
+  const {
+    isRecording,
+    currentNote,
+    elapsedMs,
+    chunkCount,
+    queueDepth,
+    permissionGranted,
+    startSession,
+    stopSession,
+    requestPermission,
+  } = useRecording();
+
+  const [title, setTitle] = useState("");
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!permissionGranted) {
+      requestPermission();
+    }
+  }, [permissionGranted, requestPermission]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollToEnd({ animated: true });
+  }, [currentNote]);
+
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      await stopSession();
+      setTitle("");
+    } else {
+      try {
+        const sessionTitle = title.trim() || `Meeting ${new Date().toLocaleString()}`;
+        await startSession(sessionTitle);
+      } catch (err) {
+        Alert.alert("Error", err instanceof Error ? err.message : "Failed to start recording");
+      }
+    }
+  };
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="p-6">
-        <View className="bg-indigo-50 rounded-xl p-5 mb-6">
-          <Text className="text-xl font-bold text-indigo-800 mb-2">👋 Welcome, {name}!</Text>
-          <Text className="text-indigo-700 mb-4">You've successfully logged into the app.</Text>
-          <View className="bg-white p-4 rounded-lg">
-            <Text className="text-gray-500 mb-1">Your email:</Text>
-            <Text className="font-semibold mb-2">{email}</Text>
-            <Text className="text-gray-500 mb-1">User ID:</Text>
-            <Text className="font-semibold">{user?.id ?? "Not available"}</Text>
-          </View>
+    <KeyboardAvoidingView
+      className="flex-1 bg-background"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View className="flex-1 px-4 pt-4">
+        <TextInput
+          className="bg-card rounded-xl px-4 py-3 text-base font-sans border border-border mb-4 text-foreground"
+          placeholder="Session title (optional)"
+          value={title}
+          onChangeText={setTitle}
+          editable={!isRecording}
+          placeholderTextColor={colors.mutedForeground}
+        />
+
+        <View className="items-center py-6">
+          <Pressable
+            onPress={handleToggleRecording}
+            className={`w-24 h-24 rounded-full items-center justify-center ${
+              isRecording ? "bg-destructive" : "bg-primary"
+            }`}
+            style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+          >
+            {isRecording ? (
+              <Square size={36} color={colors.primaryForeground} />
+            ) : (
+              <Mic size={40} color={colors.primaryForeground} />
+            )}
+          </Pressable>
+
+          <Text className="text-3xl font-sans-bold mt-4 text-foreground tabular-nums">
+            {formatDuration(elapsedMs)}
+          </Text>
+
+          {isRecording && (
+            <View className="flex-row mt-2 gap-x-4">
+              <View className="flex-row items-center">
+                <View className="w-2 h-2 rounded-full bg-destructive mr-1.5" />
+                <Text className="text-sm text-muted-foreground font-sans">Recording</Text>
+              </View>
+              <Text className="text-sm text-muted-foreground font-sans">
+                Chunks: {chunkCount}
+              </Text>
+              <Text className="text-sm text-muted-foreground font-sans">
+                Queue: {queueDepth}
+              </Text>
+            </View>
+          )}
         </View>
 
-        <Text className="text-xl font-bold mb-4">Features</Text>
-
-        <View className="space-y-4 mb-8">
-          <View className="bg-gray-50 p-4 rounded-lg">
-            <Text className="font-semibold mb-1">Authentication Ready</Text>
-            <Text className="text-gray-600">
-              The app includes a complete authentication flow with login, registration, and session
-              management.
+        <View className="flex-1 bg-card rounded-xl border border-border mb-4 overflow-hidden">
+          <View className="flex-row items-center px-4 py-2 border-b border-border">
+            <FileText size={16} color={colors.mutedForeground} />
+            <Text className="text-sm font-sans-medium text-muted-foreground ml-2">
+              Live Transcript
             </Text>
           </View>
 
-          <View className="bg-gray-50 p-4 rounded-lg">
-            <Text className="font-semibold mb-1">Clean Architecture</Text>
-            <Text className="text-gray-600">
-              Follows domain-driven design with clear separation of concerns.
-            </Text>
-          </View>
-
-          <View className="bg-gray-50 p-4 rounded-lg">
-            <Text className="font-semibold mb-1">Modern UI</Text>
-            <Text className="text-gray-600">
-              Beautiful, responsive UI with NativeWind (Tailwind CSS).
-            </Text>
-          </View>
+          <ScrollView
+            ref={scrollRef}
+            className="flex-1 px-4 py-3"
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            {currentNote ? (
+              <Text className="text-base text-foreground leading-6 font-sans">{currentNote}</Text>
+            ) : (
+              <Text className="text-base text-muted-foreground italic font-sans">
+                {isRecording
+                  ? "Waiting for transcription..."
+                  : "Tap the microphone to start recording. Transcribed text will appear here in real time."}
+              </Text>
+            )}
+          </ScrollView>
         </View>
-
-        <Button label="Logout" onPress={logout} variant="secondary" />
       </View>
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

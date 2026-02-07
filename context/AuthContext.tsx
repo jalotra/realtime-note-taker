@@ -1,161 +1,76 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Alert } from "react-native";
+import * as LocalAuthentication from "expo-local-authentication";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { Platform } from "react-native";
 
-import AuthService from "../services/authService";
-import { AuthState, LoginCredentials, RegisterCredentials } from "../types/user";
-
-interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (credentials: RegisterCredentials) => Promise<void>;
-  logout: () => Promise<void>;
-  clearError: () => void;
-}
+type AuthContextType = {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  authenticate: () => Promise<void>;
+  lock: () => void;
+};
 
 const AuthContext = createContext<AuthContextType>({
-  user: null,
   isAuthenticated: false,
   isLoading: true,
-  error: null,
-  login: async () => {},
-  register: async () => {},
-  logout: async () => {},
-  clearError: () => {},
+  authenticate: async () => {},
+  lock: () => {},
 });
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-    error: null,
-  });
-
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const isAuthenticated = await AuthService.isAuthenticated();
-
-        if (isAuthenticated) {
-          const user = await AuthService.getCurrentUser();
-          setState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-        } else {
-          setState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-          });
-        }
-      } catch {
-        setState({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: "Failed to restore authentication state",
-        });
+  const authenticate = useCallback(async () => {
+    try {
+      if (Platform.OS === "web") {
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return;
       }
-    };
 
-    checkAuthStatus();
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Unlock Note Taker",
+        fallbackLabel: "Use passcode",
+        disableDeviceFallback: false,
+      });
+
+      setIsAuthenticated(result.success);
+    } catch {
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
-    try {
-      setState({ ...state, isLoading: true, error: null });
+  const lock = useCallback(() => {
+    setIsAuthenticated(false);
+  }, []);
 
-      const user = await AuthService.login(credentials);
+  useEffect(() => {
+    authenticate();
+  }, [authenticate]);
 
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error) {
-      setState({
-        ...state,
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Login failed",
-      });
-      throw error;
-    }
-  };
-
-  const register = async (credentials: RegisterCredentials) => {
-    try {
-      setState({ ...state, isLoading: true, error: null });
-
-      const user = await AuthService.register(credentials);
-
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error) {
-      setState({
-        ...state,
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Registration failed",
-      });
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      setState({ ...state, isLoading: true, error: null });
-
-      await AuthService.logout();
-
-      setState({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error) {
-      setState({
-        ...state,
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Logout failed",
-      });
-      Alert.alert("Logout Error", "Failed to log out. Please try again.");
-    }
-  };
-
-  const clearError = () => {
-    setState({ ...state, error: null });
-  };
-
-  const contextValue: AuthContextType = {
-    ...state,
-    login,
-    register,
-    logout,
-    clearError,
-  };
-
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, authenticate, lock }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
-
   return context;
 };
 

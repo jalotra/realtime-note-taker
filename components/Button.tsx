@@ -16,18 +16,23 @@ export default function Button({
   fullWidth = true,
 }: Props) {
   const getBackgroundColor = () => {
-    if (disabled) return "bg-gray-400";
+    if (disabled) return "bg-muted";
 
     switch (variant) {
       case "primary":
-        return "bg-indigo-700";
+        return "bg-primary";
       case "secondary":
-        return "bg-gray-600";
+        return "bg-secondary";
       case "danger":
-        return "bg-red-600";
+        return "bg-destructive";
       default:
-        return "bg-indigo-700";
+        return "bg-primary";
     }
+  };
+
+  const getTextColor = () => {
+    if (variant === "secondary") return "text-secondary-foreground";
+    return "text-primary-foreground";
   };
 
   return (
@@ -44,7 +49,7 @@ export default function Button({
         opacity: pressed ? 0.8 : 1,
       })}
     >
-      <Text className="color-white font-bold text-center text-base">{label}</Text>
+      <Text className={`font-sans-bold text-center text-base ${getTextColor()}`}>{label}</Text>
     </Pressable>
   );
 }
