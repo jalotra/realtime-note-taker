@@ -1,61 +1,59 @@
-import { File, Directory, Paths } from "expo-file-system";
+import * as FileSystem from "expo-file-system";
 
 import { AudioChunk } from "../types/recording";
 
 const CHUNKS_DIR_NAME = "audio_chunks";
 
-function getChunksDir(): Directory {
-  return new Directory(Paths.document, CHUNKS_DIR_NAME);
+function getChunksDirUri(): string {
+  return `${FileSystem.documentDirectory}${CHUNKS_DIR_NAME}/`;
 }
 
 export default class AudioChunkService {
-  static ensureChunksDir(): void {
-    const dir = getChunksDir();
-    if (!dir.exists) {
-      dir.create();
+  static async ensureChunksDir(): Promise<void> {
+    const dirUri = getChunksDirUri();
+    const info = await FileSystem.getInfoAsync(dirUri);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(dirUri, { intermediates: true });
     }
   }
 
-  static saveChunk(
+  static async saveChunk(
     sourceUri: string,
     sessionId: string,
     index: number,
     durationMs: number,
-  ): AudioChunk {
-    this.ensureChunksDir();
+  ): Promise<AudioChunk> {
+    await this.ensureChunksDir();
 
     const fileName = `${sessionId}_chunk_${index}.m4a`;
-    const dest = new File(getChunksDir(), fileName);
-    const source = new File(sourceUri);
+    const destUri = `${getChunksDirUri()}${fileName}`;
 
-    source.copy(dest);
+    await FileSystem.copyAsync({ from: sourceUri, to: destUri });
 
-    return { uri: dest.uri, index, durationMs };
+    return { uri: destUri, index, durationMs };
   }
 
-  static mergeChunkUris(sessionId: string, chunkUris: string[]): string {
-    // expo-file-system doesn't provide native audio concatenation.
-    // For MVP, keep the last chunk as the "representative" audio file.
-    // A production app would use a native module or server-side merging.
+  static async mergeChunkUris(sessionId: string, chunkUris: string[]): Promise<string> {
     if (chunkUris.length === 0) {
       throw new Error("No chunks to merge");
     }
 
-    const finalFile = new File(Paths.document, `recording_${sessionId}.m4a`);
-    const lastChunk = new File(chunkUris[chunkUris.length - 1]);
-    lastChunk.copy(finalFile);
+    const finalUri = `${FileSystem.documentDirectory}recording_${sessionId}.m4a`;
+    const lastChunk = chunkUris[chunkUris.length - 1];
+    await FileSystem.copyAsync({ from: lastChunk, to: finalUri });
 
-    return finalFile.uri;
+    return finalUri;
   }
 
-  static cleanupSessionChunks(sessionId: string): void {
-    const dir = getChunksDir();
-    if (!dir.exists) return;
+  static async cleanupSessionChunks(sessionId: string): Promise<void> {
+    const dirUri = getChunksDirUri();
+    const info = await FileSystem.getInfoAsync(dirUri);
+    if (!info.exists) return;
 
-    const items = dir.list();
-    for (const item of items) {
-      if (item instanceof File && item.name.startsWith(`${sessionId}_chunk_`)) {
-        item.delete();
+    const items = await FileSystem.readDirectoryAsync(dirUri);
+    for (const name of items) {
+      if (name.startsWith(`${sessionId}_chunk_`)) {
+        await FileSystem.deleteAsync(`${dirUri}${name}`, { idempotent: true });
       }
     }
   }

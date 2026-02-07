@@ -4,8 +4,10 @@ export type RecordingSession = {
   createdAt: number;
   durationMs: number;
   audioUri: string;
+  chunkUris: string[];
   noteId: string;
   chunkCount: number;
+  status: "recording" | "paused" | "completed";
 };
 
 export type Note = {

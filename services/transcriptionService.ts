@@ -1,4 +1,4 @@
-import { File } from "expo-file-system";
+import * as FileSystem from "expo-file-system";
 
 import { TranscriptionConfig } from "../types/recording";
 
@@ -10,12 +10,12 @@ export default class TranscriptionService {
       throw new Error("Transcription API key is not configured");
     }
 
-    const file = new File(audioUri);
+    const file = await FileSystem.getInfoAsync(audioUri);
     if (!file.exists) {
       throw new Error(`Audio file not found: ${audioUri}`);
     }
 
-    const fileName = file.name ?? "chunk.m4a";
+    const fileName = file.uri.split("/").pop() ?? "chunk.m4a";
 
     const formData = new FormData();
     formData.append("file", {

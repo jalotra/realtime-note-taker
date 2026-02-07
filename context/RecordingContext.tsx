@@ -28,6 +28,7 @@ import {
 
 type RecordingContextState = {
   isRecording: boolean;
+  isPaused: boolean;
   currentNote: string;
   currentSessionId: string | null;
   elapsedMs: number;
@@ -40,6 +41,8 @@ type RecordingContextState = {
 type RecordingContextActions = {
   startSession: (title: string) => Promise<void>;
   stopSession: () => Promise<void>;
+  pauseSession: () => void;
+  resumeSession: () => void;
   updateConfig: (partial: Partial<TranscriptionConfig>) => Promise<void>;
   requestPermission: () => Promise<boolean>;
 };
@@ -53,6 +56,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const recorderState = useAudioRecorderState(recorder, 250);
 
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentNote, setCurrentNote] = useState("");
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -72,9 +76,16 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const titleRef = useRef("");
   const noteRef = useRef("");
   const isRecordingRef = useRef(false);
+  const isPausedRef = useRef(false);
+  const sessionIdRef = useRef<string | null>(null);
+  const configRef = useRef<TranscriptionConfig>(DEFAULT_TRANSCRIPTION_CONFIG);
+  const elapsedAtPause = useRef(0);
 
   useEffect(() => {
-    StorageService.getTranscriptionConfig().then(setConfig);
+    StorageService.getTranscriptionConfig().then((c) => {
+      setConfig(c);
+      configRef.current = c;
+    });
   }, []);
 
   const requestPermission = useCallback(async () => {
@@ -90,7 +101,10 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const rotateChunk = useCallback(async () => {
-    if (!isRecordingRef.current) return;
+    if (!isRecordingRef.current || isPausedRef.current) return;
+
+    const sid = sessionIdRef.current;
+    if (!sid) return;
 
     try {
       const durationMs = recorderState.durationMillis ?? 0;
@@ -98,13 +112,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
       const uri = recorder.uri;
       if (uri) {
-        const sessionId = currentSessionId ?? "unknown";
-        const chunk = AudioChunkService.saveChunk(
-          uri,
-          sessionId,
-          chunkIndex.current,
-          durationMs,
-        );
+        const chunk = await AudioChunkService.saveChunk(uri, sid, chunkIndex.current, durationMs);
         chunkQueue.current.push(chunk);
         chunkUris.current.push(chunk.uri);
         chunkIndex.current += 1;
@@ -117,7 +125,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Chunk rotation error:", err);
     }
-  }, [recorder, recorderState.durationMillis, currentSessionId]);
+  }, [recorder, recorderState.durationMillis]);
 
   const processQueue = useCallback(async () => {
     if (isProcessing.current) return;
@@ -129,7 +137,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       const chunk = chunkQueue.current.shift()!;
       setQueueDepth(chunkQueue.current.length);
 
-      const text = await TranscriptionService.transcribe(chunk.uri, config);
+      const text = await TranscriptionService.transcribe(chunk.uri, configRef.current);
       if (text.trim()) {
         const separator = noteRef.current.length > 0 ? " " : "";
         noteRef.current = noteRef.current + separator + text.trim();
@@ -140,7 +148,24 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     } finally {
       isProcessing.current = false;
     }
-  }, [config]);
+  }, []);
+
+  const startRotationTimer = useCallback(() => {
+    if (rotationTimer.current) clearInterval(rotationTimer.current);
+    rotationTimer.current = setInterval(
+      () => {
+        rotateChunk();
+      },
+      configRef.current.chunkDurationSec * 1000,
+    );
+  }, [rotateChunk]);
+
+  const startElapsedTimer = useCallback(() => {
+    if (elapsedTimer.current) clearInterval(elapsedTimer.current);
+    elapsedTimer.current = setInterval(() => {
+      setElapsedMs(Date.now() - sessionStartTime.current);
+    }, 250);
+  }, []);
 
   const startSession = useCallback(
     async (title: string) => {
@@ -157,39 +182,133 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       chunkUris.current = [];
       isProcessing.current = false;
       sessionStartTime.current = Date.now();
+      sessionIdRef.current = sessionId;
+      isPausedRef.current = false;
+      elapsedAtPause.current = 0;
 
       setCurrentSessionId(sessionId);
       setCurrentNote("");
       setChunkCount(0);
       setQueueDepth(0);
       setElapsedMs(0);
+      setIsPaused(false);
+
+      const noteId = `note_${sessionId}`;
+      const preliminarySession: RecordingSession = {
+        id: sessionId,
+        title: title || `Meeting ${new Date().toLocaleString()}`,
+        createdAt: sessionStartTime.current,
+        durationMs: 0,
+        audioUri: "",
+        chunkUris: [],
+        noteId,
+        chunkCount: 0,
+        status: "recording",
+      };
+      await StorageService.saveRecording(preliminarySession);
+
+      const preliminaryNote: Note = {
+        id: noteId,
+        recordingId: sessionId,
+        text: "",
+        createdAt: sessionStartTime.current,
+        updatedAt: sessionStartTime.current,
+      };
+      await StorageService.saveNote(preliminaryNote);
 
       await recorder.prepareToRecordAsync();
       recorder.record();
       setIsRecording(true);
       isRecordingRef.current = true;
 
-      rotationTimer.current = setInterval(
-        () => {
-          rotateChunk();
-        },
-        config.chunkDurationSec * 1000,
-      );
+      startRotationTimer();
 
       consumerTimer.current = setInterval(() => {
         processQueue();
       }, 1500);
 
-      elapsedTimer.current = setInterval(() => {
-        setElapsedMs(Date.now() - sessionStartTime.current);
-      }, 250);
+      startElapsedTimer();
     },
-    [permissionGranted, requestPermission, recorder, config, rotateChunk, processQueue],
+    [
+      permissionGranted,
+      requestPermission,
+      recorder,
+      startRotationTimer,
+      startElapsedTimer,
+      processQueue,
+    ],
   );
+
+  const pauseSession = useCallback(() => {
+    if (!isRecordingRef.current || isPausedRef.current) return;
+
+    isPausedRef.current = true;
+    setIsPaused(true);
+
+    recorder.pause();
+
+    elapsedAtPause.current = Date.now() - sessionStartTime.current;
+
+    if (rotationTimer.current) {
+      clearInterval(rotationTimer.current);
+      rotationTimer.current = null;
+    }
+    if (elapsedTimer.current) {
+      clearInterval(elapsedTimer.current);
+      elapsedTimer.current = null;
+    }
+
+    const sid = sessionIdRef.current;
+    if (sid) {
+      StorageService.saveRecording({
+        id: sid,
+        title: titleRef.current || `Meeting ${new Date().toLocaleString()}`,
+        createdAt: sessionStartTime.current,
+        durationMs: elapsedAtPause.current,
+        audioUri: "",
+        chunkUris: [...chunkUris.current],
+        noteId: `note_${sid}`,
+        chunkCount: chunkIndex.current,
+        status: "paused",
+      });
+    }
+  }, [recorder]);
+
+  const resumeSession = useCallback(() => {
+    if (!isRecordingRef.current || !isPausedRef.current) return;
+
+    isPausedRef.current = false;
+    setIsPaused(false);
+
+    const pausedDuration = elapsedAtPause.current;
+    sessionStartTime.current = Date.now() - pausedDuration;
+
+    recorder.record();
+
+    startRotationTimer();
+    startElapsedTimer();
+
+    const sid = sessionIdRef.current;
+    if (sid) {
+      StorageService.saveRecording({
+        id: sid,
+        title: titleRef.current || `Meeting ${new Date().toLocaleString()}`,
+        createdAt: sessionStartTime.current,
+        durationMs: pausedDuration,
+        audioUri: "",
+        chunkUris: [...chunkUris.current],
+        noteId: `note_${sid}`,
+        chunkCount: chunkIndex.current,
+        status: "recording",
+      });
+    }
+  }, [recorder, startRotationTimer, startElapsedTimer]);
 
   const stopSession = useCallback(async () => {
     isRecordingRef.current = false;
+    isPausedRef.current = false;
     setIsRecording(false);
+    setIsPaused(false);
 
     if (rotationTimer.current) clearInterval(rotationTimer.current);
     if (consumerTimer.current) clearInterval(consumerTimer.current);
@@ -198,15 +317,18 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     consumerTimer.current = null;
     elapsedTimer.current = null;
 
+    const sid = sessionIdRef.current;
+    const totalDuration = Date.now() - sessionStartTime.current;
+
     try {
       const durationMs = recorderState.durationMillis ?? 0;
       await recorder.stop();
 
       const uri = recorder.uri;
-      if (uri && currentSessionId) {
-        const chunk = AudioChunkService.saveChunk(
+      if (uri && sid) {
+        const chunk = await AudioChunkService.saveChunk(
           uri,
-          currentSessionId,
+          sid,
           chunkIndex.current,
           durationMs,
         );
@@ -215,56 +337,69 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         chunkIndex.current += 1;
         setChunkCount(chunkIndex.current);
       }
-
-      // Drain remaining queue
-      while (chunkQueue.current.length > 0) {
-        await processQueue();
-      }
-
-      const totalDuration = Date.now() - sessionStartTime.current;
-
-      if (currentSessionId && chunkUris.current.length > 0) {
-        const audioUri = AudioChunkService.mergeChunkUris(
-          currentSessionId,
-          chunkUris.current,
-        );
-
-        const noteId = `note_${currentSessionId}`;
-        const now = Date.now();
-
-        const session: RecordingSession = {
-          id: currentSessionId,
-          title: titleRef.current || `Recording ${new Date().toLocaleString()}`,
-          createdAt: sessionStartTime.current,
-          durationMs: totalDuration,
-          audioUri,
-          noteId,
-          chunkCount: chunkIndex.current,
-        };
-
-        const note: Note = {
-          id: noteId,
-          recordingId: currentSessionId,
-          text: noteRef.current,
-          createdAt: sessionStartTime.current,
-          updatedAt: now,
-        };
-
-        await StorageService.saveRecording(session);
-        await StorageService.saveNote(note);
-        AudioChunkService.cleanupSessionChunks(currentSessionId);
-      }
     } catch (err) {
-      console.error("Stop session error:", err);
+      console.error("Error saving final chunk:", err);
     }
 
+    while (chunkQueue.current.length > 0) {
+      try {
+        await processQueue();
+      } catch {
+        break;
+      }
+    }
+
+    let audioUri = "";
+    if (sid && chunkUris.current.length > 0) {
+      try {
+        audioUri = await AudioChunkService.mergeChunkUris(sid, chunkUris.current);
+      } catch (err) {
+        console.error("Error merging chunks:", err);
+        audioUri = chunkUris.current[chunkUris.current.length - 1];
+      }
+    }
+
+    if (sid) {
+      const noteId = `note_${sid}`;
+      const now = Date.now();
+
+      const session: RecordingSession = {
+        id: sid,
+        title: titleRef.current || `Recording ${new Date().toLocaleString()}`,
+        createdAt: sessionStartTime.current,
+        durationMs: totalDuration,
+        audioUri,
+        chunkUris: [...chunkUris.current],
+        noteId,
+        chunkCount: chunkIndex.current,
+        status: "completed",
+      };
+
+      const note: Note = {
+        id: noteId,
+        recordingId: sid,
+        text: noteRef.current,
+        createdAt: sessionStartTime.current,
+        updatedAt: now,
+      };
+
+      try {
+        await StorageService.saveRecording(session);
+        await StorageService.saveNote(note);
+      } catch (err) {
+        console.error("Error persisting session:", err);
+      }
+    }
+
+    sessionIdRef.current = null;
     setCurrentSessionId(null);
     setElapsedMs(0);
-  }, [recorder, recorderState.durationMillis, currentSessionId, processQueue]);
+  }, [recorder, recorderState.durationMillis, processQueue]);
 
   const updateConfig = useCallback(async (partial: Partial<TranscriptionConfig>) => {
     setConfig((prev) => {
       const next = { ...prev, ...partial };
+      configRef.current = next;
       StorageService.saveTranscriptionConfig(next);
       return next;
     });
@@ -272,6 +407,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const value: RecordingContextType = {
     isRecording,
+    isPaused,
     currentNote,
     currentSessionId,
     elapsedMs,
@@ -281,6 +417,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     permissionGranted,
     startSession,
     stopSession,
+    pauseSession,
+    resumeSession,
     updateConfig,
     requestPermission,
   };

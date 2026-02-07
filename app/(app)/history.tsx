@@ -1,5 +1,5 @@
 import { useRouter, useFocusEffect } from "expo-router";
-import { Clock, Layers, FileText } from "lucide-react-native";
+import { Clock, Layers, FileText, Mic } from "lucide-react-native";
 import React, { useState, useCallback } from "react";
 import { View, Text, FlatList, Pressable, RefreshControl } from "react-native";
 
@@ -41,7 +41,15 @@ export default function HistoryScreen() {
       return { ...r, notePreview: preview };
     });
 
-    setSessions(merged);
+    const sorted = merged.sort((a, b) => {
+      const aActive = a.status === "recording" || a.status === "paused";
+      const bActive = b.status === "recording" || b.status === "paused";
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return b.createdAt - a.createdAt;
+    });
+
+    setSessions(sorted);
   }, []);
 
   useFocusEffect(
@@ -56,20 +64,41 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, [loadSessions]);
 
+  const isActive = (status: RecordingSession["status"]) =>
+    status === "recording" || status === "paused";
+
   const renderItem = ({ item }: { item: SessionWithNote }) => (
     <Pressable
       className="bg-card rounded-xl p-4 mb-3 border border-border"
-      onPress={() => router.push(`/session/${item.id}` as never)}
-      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      onPress={() => {
+        if (!isActive(item.status)) {
+          router.push(`/session/${item.id}` as never);
+        }
+      }}
+      style={({ pressed }) => ({
+        opacity: isActive(item.status) ? 0.9 : pressed ? 0.7 : 1,
+      })}
     >
       <View className="flex-row items-start justify-between mb-2">
-        <Text
-          className="text-base font-sans-semibold text-foreground flex-1 mr-2"
-          numberOfLines={1}
-        >
-          {item.title}
+        <View className="flex-row items-center flex-1 mr-2">
+          {isActive(item.status) && (
+            <View className="flex-row items-center bg-destructive/10 rounded-full px-2 py-0.5 mr-2">
+              <View className="w-1.5 h-1.5 rounded-full bg-destructive mr-1" />
+              <Text className="text-xs text-destructive font-sans-medium">
+                {item.status === "recording" ? "Recording" : "Paused"}
+              </Text>
+            </View>
+          )}
+          <Text
+            className="text-base font-sans-semibold text-foreground flex-1"
+            numberOfLines={1}
+          >
+            {item.title}
+          </Text>
+        </View>
+        <Text className="text-xs text-muted-foreground font-sans">
+          {formatDate(item.createdAt)}
         </Text>
-        <Text className="text-xs text-muted-foreground font-sans">{formatDate(item.createdAt)}</Text>
       </View>
 
       <View className="flex-row items-center mb-2 gap-x-3">
@@ -85,6 +114,14 @@ export default function HistoryScreen() {
             {item.chunkCount} chunks
           </Text>
         </View>
+        {(item.chunkUris?.length ?? 0) > 0 && (
+          <View className="flex-row items-center">
+            <Mic size={14} color={colors.mutedForeground} />
+            <Text className="text-xs text-muted-foreground ml-1 font-sans">
+              Audio available
+            </Text>
+          </View>
+        )}
       </View>
 
       {item.notePreview ? (
@@ -94,7 +131,7 @@ export default function HistoryScreen() {
         </Text>
       ) : (
         <Text className="text-sm text-muted-foreground italic font-sans">
-          No transcript available
+          {isActive(item.status) ? "Transcription in progress..." : "No transcript available"}
         </Text>
       )}
     </Pressable>
