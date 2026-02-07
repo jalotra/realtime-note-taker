@@ -1,0 +1,76 @@
+{
+  "author": {
+    "email": "hello@ecrin.digital",
+    "name": "Ecrin Digital",
+    "url": "https://ecrin.digital"
+  },
+  "name": "expo-starter-auth-nativewind",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write '**/*.{js,jsx,ts,tsx,json,md}'",
+    "check-types": "tsc --noEmit",
+    "check-all": "npm run check-types && npm run lint && npm run format"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.4",
+    "@react-native-async-storage/async-storage": "^2.1.1",
+    "@types/jest": "^29.5.14",
+    "@types/mocha": "^10.0.10",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "eslint-plugin-react-native": "^5.0.0",
+    "expo": "^52.0.16",
+    "expo-constants": "~17.0.3",
+    "expo-linking": "~7.0.3",
+    "expo-router": "~4.0.11",
+    "expo-splash-screen": "~0.29.13",
+    "expo-status-bar": "~2.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "nativewind": "^4.1.23",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-native": "0.76.6",
+    "react-native-reanimated": "~3.16.1",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-web": "~0.19.6",
+    "tailwindcss": "^3.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.0.1",
+    "@types/react": "~18.3.12",
+    "jest": "^29.7.0",
+    "jest-expo": "^52.0.4",
+    "jsdom": "^26.0.0",
+    "react-test-renderer": "18.3.1",
+    "typescript": "~5.3.3",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-config-universe": "^12.0.0",
+    "prettier": "^3.2.4"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "private": true
+}
