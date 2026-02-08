@@ -1,5 +1,5 @@
 import * as FileSystem from "expo-file-system";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from "expo-audio";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { SkipBack, SkipForward, Play, Pause, FileText, AlertCircle } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -53,6 +53,10 @@ export default function SessionDetailScreen() {
   const status = useAudioPlayerStatus(player);
 
   useEffect(() => {
+    setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+  }, []);
+
+  useEffect(() => {
     (async () => {
       if (!id) return;
       const rec = await StorageService.getRecordingById(id);
@@ -84,6 +88,7 @@ export default function SessionDetailScreen() {
   }
 
   const togglePlayback = () => {
+    if (!status.isLoaded) return;
     if (status.playing) {
       player.pause();
     } else {
@@ -138,8 +143,9 @@ export default function SessionDetailScreen() {
 
                   <Pressable
                     onPress={togglePlayback}
+                    disabled={!status.isLoaded}
                     className="w-16 h-16 rounded-full bg-primary items-center justify-center"
-                    style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+                    style={({ pressed }) => ({ opacity: !status.isLoaded ? 0.5 : pressed ? 0.8 : 1 })}
                   >
                     {status.playing ? (
                       <Pause size={28} color={colors.primaryForeground} />
