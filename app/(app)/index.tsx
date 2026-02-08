@@ -94,7 +94,7 @@ export default function RecordScreen() {
             <View className="flex-row items-center gap-x-6">
               {isPaused ? (
                 <Pressable
-                  onPress={resumeSession}
+                  onPress={() => resumeSession()}
                   className="w-20 h-20 rounded-full items-center justify-center bg-primary"
                   style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
                 >
@@ -102,7 +102,7 @@ export default function RecordScreen() {
                 </Pressable>
               ) : (
                 <Pressable
-                  onPress={pauseSession}
+                  onPress={() => pauseSession()}
                   className="w-20 h-20 rounded-full items-center justify-center bg-primary"
                   style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
                 >

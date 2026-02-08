@@ -1,3 +1,5 @@
+import { TranscriptionProviderName } from "./transcriptionProvider";
+
 export type RecordingSession = {
   id: string;
   title: string;
@@ -25,6 +27,7 @@ export type AudioChunk = {
 };
 
 export type TranscriptionConfig = {
+  provider: TranscriptionProviderName;
   chunkDurationSec: number;
   apiEndpoint: string;
   apiKey: string;
@@ -32,6 +35,7 @@ export type TranscriptionConfig = {
 };
 
 export const DEFAULT_TRANSCRIPTION_CONFIG: TranscriptionConfig = {
+  provider: "openai",
   chunkDurationSec: 10,
   apiEndpoint: "https://api.openai.com/v1/audio/transcriptions",
   apiKey: "",

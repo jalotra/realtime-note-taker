@@ -15,6 +15,10 @@ import { colors } from "../../constants/colors";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useRecording } from "../../context/RecordingContext";
+import {
+  PROVIDER_REGISTRY,
+  TranscriptionProviderName,
+} from "../../types/transcriptionProvider";
 import type { LucideIcon } from "lucide-react-native";
 
 type SettingItemProps = {
@@ -72,6 +76,7 @@ export default function SettingsScreen() {
   const { lock } = useAuth();
   const { config, updateConfig } = useRecording();
 
+  const [provider, setProvider] = useState<TranscriptionProviderName>(config.provider);
   const [apiEndpoint, setApiEndpoint] = useState(config.apiEndpoint);
   const [apiKey, setApiKey] = useState(config.apiKey);
   const [model, setModel] = useState(config.model);
@@ -79,14 +84,23 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
 
   useEffect(() => {
+    setProvider(config.provider);
     setApiEndpoint(config.apiEndpoint);
     setApiKey(config.apiKey);
     setModel(config.model);
     setChunkDuration(config.chunkDurationSec);
   }, [config]);
 
+  const handleProviderChange = (name: TranscriptionProviderName) => {
+    setProvider(name);
+    const meta = PROVIDER_REGISTRY[name];
+    setApiEndpoint(meta.defaultEndpoint);
+    setModel(meta.defaultModel);
+  };
+
   const handleSaveConfig = async () => {
     await updateConfig({
+      provider,
       apiEndpoint: apiEndpoint.trim(),
       apiKey: apiKey.trim(),
       model: model.trim(),
@@ -109,12 +123,36 @@ export default function SettingsScreen() {
           Transcription
         </Text>
         <View className="bg-card rounded-xl mb-6 p-4 border border-border">
+          <Text className="text-sm font-sans-medium text-foreground mb-2">Provider</Text>
+          <View className="flex-row mb-4" style={{ gap: 8 }}>
+            {(Object.keys(PROVIDER_REGISTRY) as TranscriptionProviderName[]).map((key) => {
+              const isActive = provider === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  className={`flex-1 py-2.5 rounded-lg border items-center ${
+                    isActive ? "bg-primary border-primary" : "bg-secondary border-border"
+                  }`}
+                  onPress={() => handleProviderChange(key)}
+                >
+                  <Text
+                    className={`text-sm font-sans-medium ${
+                      isActive ? "text-primary-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {PROVIDER_REGISTRY[key].label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <Text className="text-sm font-sans-medium text-foreground mb-1">API Endpoint</Text>
           <TextInput
             className="bg-secondary rounded-lg px-3 py-2.5 text-sm font-sans border border-border mb-3 text-foreground"
             value={apiEndpoint}
             onChangeText={setApiEndpoint}
-            placeholder="https://api.openai.com/v1/audio/transcriptions"
+            placeholder={PROVIDER_REGISTRY[provider].defaultEndpoint}
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
             autoCorrect={false}
@@ -125,7 +163,7 @@ export default function SettingsScreen() {
             className="bg-secondary rounded-lg px-3 py-2.5 text-sm font-sans border border-border mb-3 text-foreground"
             value={apiKey}
             onChangeText={setApiKey}
-            placeholder="sk-..."
+            placeholder={PROVIDER_REGISTRY[provider].apiKeyPlaceholder}
             placeholderTextColor={colors.mutedForeground}
             secureTextEntry
             autoCapitalize="none"
@@ -137,7 +175,7 @@ export default function SettingsScreen() {
             className="bg-secondary rounded-lg px-3 py-2.5 text-sm font-sans border border-border mb-3 text-foreground"
             value={model}
             onChangeText={setModel}
-            placeholder="gpt-4o-transcribe"
+            placeholder={PROVIDER_REGISTRY[provider].defaultModel}
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
             autoCorrect={false}
