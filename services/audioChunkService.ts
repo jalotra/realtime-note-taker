@@ -24,12 +24,9 @@ export default class AudioChunkService {
     durationMs: number,
   ): Promise<AudioChunk> {
     await this.ensureChunksDir();
-
     const fileName = `${sessionId}_chunk_${index}.m4a`;
     const destUri = `${getChunksDirUri()}${fileName}`;
-
     await FileSystem.copyAsync({ from: sourceUri, to: destUri });
-
     return { uri: destUri, index, durationMs };
   }
 
@@ -37,11 +34,9 @@ export default class AudioChunkService {
     if (chunkUris.length === 0) {
       throw new Error("No chunks to merge");
     }
-
     const finalUri = `${FileSystem.documentDirectory}recording_${sessionId}.m4a`;
     const lastChunk = chunkUris[chunkUris.length - 1];
     await FileSystem.copyAsync({ from: lastChunk, to: finalUri });
-
     return finalUri;
   }
 

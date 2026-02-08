@@ -33,9 +33,9 @@ export default function HistoryScreen() {
   const loadSessions = useCallback(async () => {
     const recordings = await StorageService.getRecordings();
     const notes = await StorageService.getNotes();
-    const noteMap = new Map<string, Note>(notes.map((n) => [n.recordingId, n]));
+    const noteMap = new Map<string, Note>(notes.map(n => [n.recordingId, n]));
 
-    const merged: SessionWithNote[] = recordings.map((r) => {
+    const merged: SessionWithNote[] = recordings.map(r => {
       const note = noteMap.get(r.id);
       const preview = note?.text?.slice(0, 120) ?? "";
       return { ...r, notePreview: preview };
@@ -89,10 +89,7 @@ export default function HistoryScreen() {
               </Text>
             </View>
           )}
-          <Text
-            className="text-base font-sans-semibold text-foreground flex-1"
-            numberOfLines={1}
-          >
+          <Text className="text-base font-sans-semibold text-foreground flex-1" numberOfLines={1}>
             {item.title}
           </Text>
         </View>
@@ -117,9 +114,7 @@ export default function HistoryScreen() {
         {(item.chunkUris?.length ?? 0) > 0 && (
           <View className="flex-row items-center">
             <Mic size={14} color={colors.mutedForeground} />
-            <Text className="text-xs text-muted-foreground ml-1 font-sans">
-              Audio available
-            </Text>
+            <Text className="text-xs text-muted-foreground ml-1 font-sans">Audio available</Text>
           </View>
         )}
       </View>
@@ -141,7 +136,7 @@ export default function HistoryScreen() {
     <View className="flex-1 bg-background">
       <FlatList
         data={sessions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

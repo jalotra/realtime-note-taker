@@ -1,5 +1,12 @@
 import * as LocalAuthentication from "expo-local-authentication";
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
 import { Platform } from "react-native";
 
 type AuthContextType = {

@@ -96,8 +96,7 @@ export default function SessionDetailScreen() {
     player.seekTo(target);
   };
 
-  const playbackProgress =
-    status.duration > 0 ? (status.currentTime / status.duration) * 100 : 0;
+  const playbackProgress = status.duration > 0 ? (status.currentTime / status.duration) * 100 : 0;
 
   return (
     <>
@@ -170,8 +169,8 @@ export default function SessionDetailScreen() {
                 Audio Chunks ({session.chunkUris.length})
               </Text>
               <Text className="text-xs text-muted-foreground font-sans">
-                This session was recorded in {session.chunkUris.length} segments. Playing the
-                merged audio above.
+                This session was recorded in {session.chunkUris.length} segments. Playing the merged
+                audio above.
               </Text>
             </View>
           )}

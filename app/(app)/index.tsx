@@ -132,12 +132,8 @@ export default function RecordScreen() {
                 />
                 <Text className="text-sm text-muted-foreground font-sans">{statusLabel}</Text>
               </View>
-              <Text className="text-sm text-muted-foreground font-sans">
-                Chunks: {chunkCount}
-              </Text>
-              <Text className="text-sm text-muted-foreground font-sans">
-                Queue: {queueDepth}
-              </Text>
+              <Text className="text-sm text-muted-foreground font-sans">Chunks: {chunkCount}</Text>
+              <Text className="text-sm text-muted-foreground font-sans">Queue: {queueDepth}</Text>
             </View>
           )}
         </View>

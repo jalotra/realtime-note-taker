@@ -8,7 +8,6 @@ import {
   ITranscriptionProvider,
 } from "../types/transcriptionProvider";
 
-/** Shared transcription logic — both providers use an OpenAI-compatible multipart endpoint */
 async function sharedTranscribe(
   audioUri: string,
   config: TranscriptionProviderConfig,

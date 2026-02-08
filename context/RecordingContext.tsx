@@ -83,7 +83,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const isRotatingRef = useRef(false);
 
   useEffect(() => {
-    StorageService.getTranscriptionConfig().then((c) => {
+    StorageService.getTranscriptionConfig().then(c => {
       setConfig(c);
       configRef.current = c;
     });
@@ -143,15 +143,11 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       const chunk = chunkQueue.current.shift()!;
       setQueueDepth(chunkQueue.current.length);
 
-      const text = await TranscriptionService.transcribe(
-        chunk.uri,
-        configRef.current.provider,
-        {
-          apiEndpoint: configRef.current.apiEndpoint,
-          apiKey: configRef.current.apiKey,
-          model: configRef.current.model,
-        },
-      );
+      const text = await TranscriptionService.transcribe(chunk.uri, configRef.current.provider, {
+        apiEndpoint: configRef.current.apiEndpoint,
+        apiKey: configRef.current.apiKey,
+        model: configRef.current.model,
+      });
       if (text.trim()) {
         const separator = noteRef.current.length > 0 ? " " : "";
         noteRef.current = noteRef.current + separator + text.trim();
@@ -166,12 +162,9 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const startRotationTimer = useCallback(() => {
     if (rotationTimer.current) clearInterval(rotationTimer.current);
-    rotationTimer.current = setInterval(
-      () => {
-        rotateChunk();
-      },
-      configRef.current.chunkDurationSec * 1000,
-    );
+    rotationTimer.current = setInterval(() => {
+      rotateChunk();
+    }, configRef.current.chunkDurationSec * 1000);
   }, [rotateChunk]);
 
   const startElapsedTimer = useCallback(() => {
@@ -266,7 +259,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
 
     while (isRotatingRef.current) {
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
     }
 
     isPausedRef.current = true;
@@ -347,7 +340,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     const totalDuration = Date.now() - sessionStartTime.current;
 
     while (isRotatingRef.current) {
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
     }
 
     try {
@@ -358,12 +351,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
       const uri = recorder.uri;
       if (uri && sid) {
-        const chunk = await AudioChunkService.saveChunk(
-          uri,
-          sid,
-          chunkIndex.current,
-          durationMs,
-        );
+        const chunk = await AudioChunkService.saveChunk(uri, sid, chunkIndex.current, durationMs);
         chunkQueue.current.push(chunk);
         chunkUris.current.push(chunk.uri);
         chunkIndex.current += 1;
@@ -429,7 +417,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   }, [recorder, recorderState.durationMillis, processQueue]);
 
   const updateConfig = useCallback(async (partial: Partial<TranscriptionConfig>) => {
-    setConfig((prev) => {
+    setConfig(prev => {
       const next = { ...prev, ...partial };
       configRef.current = next;
       StorageService.saveTranscriptionConfig(next);

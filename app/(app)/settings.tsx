@@ -1,24 +1,13 @@
 import Slider from "@react-native-community/slider";
 import { Bell, HelpCircle, MessageCircle, ChevronRight } from "lucide-react-native";
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  Alert,
-  Switch,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, TextInput, ScrollView, Alert, Switch, TouchableOpacity } from "react-native";
 
 import { colors } from "../../constants/colors";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useRecording } from "../../context/RecordingContext";
-import {
-  PROVIDER_REGISTRY,
-  TranscriptionProviderName,
-} from "../../types/transcriptionProvider";
+import { PROVIDER_REGISTRY, TranscriptionProviderName } from "../../types/transcriptionProvider";
 import type { LucideIcon } from "lucide-react-native";
 
 type SettingItemProps = {
@@ -65,9 +54,7 @@ const SettingItem: React.FC<SettingItemProps> = ({
           thumbColor={value ? colors.primary : colors.secondary}
         />
       )}
-      {showArrow && !showToggle && (
-        <ChevronRight size={20} color={colors.mutedForeground} />
-      )}
+      {showArrow && !showToggle && <ChevronRight size={20} color={colors.mutedForeground} />}
     </TouchableOpacity>
   );
 };
@@ -125,7 +112,7 @@ export default function SettingsScreen() {
         <View className="bg-card rounded-xl mb-6 p-4 border border-border">
           <Text className="text-sm font-sans-medium text-foreground mb-2">Provider</Text>
           <View className="flex-row mb-4" style={{ gap: 8 }}>
-            {(Object.keys(PROVIDER_REGISTRY) as TranscriptionProviderName[]).map((key) => {
+            {(Object.keys(PROVIDER_REGISTRY) as TranscriptionProviderName[]).map(key => {
               const isActive = provider === key;
               return (
                 <TouchableOpacity
